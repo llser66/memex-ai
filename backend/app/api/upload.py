@@ -1,6 +1,10 @@
 from fastapi import APIRouter, UploadFile, File
 from pathlib import Path
-import fitz   # PyMuPDF
+
+from app.services.pdf_service import extract_pdf_pages
+from app.services.chunk_service import split_pages
+from app.services.embed_service import generate_embeddings
+from app.database.chroma import document_collection
 
 
 router = APIRouter(
@@ -9,8 +13,10 @@ router = APIRouter(
 )
 
 
-# 文件保存目录
-UPLOAD_DIR = Path("../../data/files")
+# 项目根目录/data/files
+BASE_DIR = Path(__file__).resolve().parents[3]
+
+UPLOAD_DIR = BASE_DIR / "data" / "files"
 
 UPLOAD_DIR.mkdir(
     parents=True,
@@ -23,14 +29,14 @@ async def upload_pdf(
     file: UploadFile = File(...)
 ):
 
-    # 判断文件类型
     if not file.filename.endswith(".pdf"):
         return {
             "error": "只支持PDF文件"
         }
 
 
-    # 保存路径
+    # 保存PDF
+
     file_path = UPLOAD_DIR / file.filename
 
 
@@ -41,22 +47,64 @@ async def upload_pdf(
         f.write(content)
 
 
-    # 读取PDF
-    doc = fitz.open(file_path)
+
+    # 1. PDF解析（保留页码）
+
+    pages = extract_pdf_pages(
+        file_path
+    )
 
 
-    text = ""
+    # 2. 文本切chunk
 
-    for page in doc:
-        text += page.get_text()
+    chunks = split_pages(
+        pages,
+        source=file.filename
+    )
 
 
-    # 返回前500字符
-    preview = text[:500]
+    # 提取文本
+
+    texts = [
+        chunk["text"]
+        for chunk in chunks
+    ]
+
+
+    # 提取metadata
+
+    metadatas = [
+        chunk["metadata"]
+        for chunk in chunks
+    ]
+
+
+    # 3. Embedding
+
+    vectors = generate_embeddings(
+        texts
+    )
+
+
+    # 4. 存入ChromaDB
+
+    ids = [
+        f"{file.filename}_{i}"
+        for i in range(len(texts))
+    ]
+
+
+    document_collection.add(
+        documents=texts,
+        embeddings=vectors,
+        metadatas=metadatas,
+        ids=ids
+    )
 
 
     return {
-        "filename": file.filename,
-        "message": "上传成功",
-        "preview": preview
+        "filename":file.filename,
+        "message":"PDF上传成功，知识库建立完成",
+        "pages":len(pages),
+        "chunks":len(chunks)
     }
