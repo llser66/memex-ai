@@ -1,0 +1,15 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: memex_postgres
+    environment:
+      POSTGRES_USER: memex
+      POSTGRES_PASSWORD: memex_password_2026
+      POSTGRES_DB: memex_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    restart: unless-stopped
