@@ -9,116 +9,54 @@ client = OpenAI(
 )
 
 
-def build_prompt(
-    question,
-    contexts,
-    memory_context=""
-):
+def build_prompt(question, contexts, memory_context=""):
 
-    # =========================
-    # 1. 构建知识库上下文
-    # =========================
-
-    context = ""
-
-    for i, text in enumerate(contexts):
-
-        context += f"""
-知识片段 {i + 1}：
-
-{text}
-
---------------------
-"""
-
-
-    # =========================
-    # 2. 构建 Prompt
-    # =========================
+    # RAG 检索资料
+    context_text = "\n\n".join(contexts)
 
     prompt = f"""
-你是一个个人AI知识助手。
+你是 Memex AI，一个个人工作记忆助手。
 
-你拥有两类信息：
+请结合下面的“用户长期记忆”和“知识库资料”回答问题。
 
-1. 用户上传的知识库资料
-2. 用户个人记忆
+如果知识库资料中有答案，优先依据资料回答。
+如果用户长期记忆中有相关信息，也可以使用。
+如果两者都没有，请明确说明不知道，不要编造。
 
-请根据提供的信息回答用户问题。
-
-回答规则：
-
-1. 优先根据知识库资料回答。
-2. 如果知识库资料没有答案，可以参考用户个人记忆。
-3. 如果知识库和用户记忆都没有相关信息，请明确说“不知道”。
-4. 不允许编造信息。
-5. 回答要简洁、准确。
-
-
-====================
-知识库资料
-====================
-
-{context}
-
-
-====================
-用户个人记忆
-====================
-
+【用户长期记忆】
 {memory_context}
 
+【知识库资料】
+{context_text}
 
-====================
-用户问题
-====================
-
+【用户问题】
 {question}
-
 """
 
     return prompt
 
 
-def generate_answer(
-    question,
-    contexts,
-    memory_context=""
-):
+def generate_answer(question, contexts, memory_context=""):
 
-    # 构建 Prompt
     prompt = build_prompt(
         question,
         contexts,
         memory_context
     )
 
-
-    # 调用 DeepSeek
     response = client.chat.completions.create(
-
         model="deepseek-chat",
-
         messages=[
-
             {
                 "role": "system",
-                "content": "你是一个专业的个人AI知识助手。"
+                "content": "你是一个专业、准确的 AI 助手。"
             },
-
             {
                 "role": "user",
                 "content": prompt
             }
-
         ],
-
         temperature=0.2
     )
 
-
-    # 获取回答
-    answer = response.choices[0].message.content
-
-
-    return answer
+    return response.choices[0].message.content

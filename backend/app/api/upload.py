@@ -8,7 +8,7 @@ from app.services.pdf_service import extract_pdf_pages
 from app.services.chunk_service import split_pages
 from app.services.embed_service import generate_embeddings
 
-from app.database.chroma import document_collection
+from app.database.chroma import collection
 
 
 router = APIRouter(
@@ -125,7 +125,7 @@ async def upload_pdf(
     # 9. 保存到 ChromaDB
     # --------------------------------------------------------
 
-    document_collection.add(
+    collection.add(
         documents=texts,
         embeddings=vectors,
         metadatas=metadatas,
@@ -134,7 +134,7 @@ async def upload_pdf(
 
 
     # ========================================================
-    # 10. 保存“上传文件”事件到 PostgreSQL
+    # 10. 保存"上传文件"事件到 PostgreSQL
     # ========================================================
 
     db = SessionLocal()

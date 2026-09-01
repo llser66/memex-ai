@@ -11,4 +11,4 @@ client = chromadb.PersistentClient(
     settings=Settings(anonymized_telemetry=False)
 )
 
-collection = client.get_or_create_collection(name="memex_documents")
+collection = client.get_or_create_collection(name="memex_documents_v2")
