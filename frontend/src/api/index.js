@@ -1,4 +1,16 @@
 import axios from 'axios'
+import {
+  addDemoDocument,
+  answerDemoQuestion,
+  createDemoWorkspace,
+  deleteDemoDocument,
+  deleteDemoProfile,
+  getDemoReportContent,
+  saveDemoProfile
+} from './demo.js'
+
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
+const demoWorkspace = createDemoWorkspace()
 
 const apiClient = axios.create({
   baseURL: '/api',
@@ -17,6 +29,7 @@ apiClient.interceptors.response.use(
 )
 
 export async function sendChatMessage(question) {
+  if (DEMO_MODE) return answerDemoQuestion(question, demoWorkspace)
   return apiClient.post('/chat/', { question })
 }
 
@@ -24,6 +37,19 @@ export async function sendChatMessage(question) {
  * 通过 SSE 接收回答。onChunk 会收到 content、sources、report_file 或 error。
  */
 export async function sendChatMessageStream(question, onChunk, signal) {
+  if (DEMO_MODE) {
+    if (signal?.aborted) throw new DOMException('请求已取消', 'AbortError')
+    const result = answerDemoQuestion(question, demoWorkspace)
+    const chunks = result.content.match(/.{1,18}/gs) || [result.content]
+    for (const chunk of chunks) {
+      if (signal?.aborted) throw new DOMException('请求已取消', 'AbortError')
+      await new Promise((resolve) => setTimeout(resolve, 24))
+      onChunk?.({ content: chunk })
+    }
+    onChunk?.({ sources: result.sources, report_file: result.reportFile })
+    return result
+  }
+
   const res = await fetch('/api/chat/stream', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -75,6 +101,14 @@ export async function sendChatMessageStream(question, onChunk, signal) {
 }
 
 export async function uploadDocument(file, onProgress) {
+  if (DEMO_MODE) {
+    for (const progress of [25, 58, 82, 100]) {
+      await new Promise((resolve) => setTimeout(resolve, 90))
+      onProgress?.(progress)
+    }
+    return addDemoDocument(demoWorkspace, file?.name)
+  }
+
   const formData = new FormData()
   formData.append('file', file)
 
@@ -92,26 +126,41 @@ export async function uploadDocument(file, onProgress) {
 export const uploadPdf = uploadDocument
 
 export async function listDocuments() {
+  if (DEMO_MODE) return demoWorkspace.documents
   return apiClient.get('/documents')
 }
 
 export async function deleteDocument(filename) {
+  if (DEMO_MODE) {
+    if (!deleteDemoDocument(demoWorkspace, filename)) throw new Error('没有找到这份演示文档')
+    return { filename, deleted_chunks: 0 }
+  }
   return apiClient.delete(`/documents/${encodeURIComponent(filename)}`)
 }
 
 export async function getMemorySummary() {
+  if (DEMO_MODE) return { profiles: demoWorkspace.profiles, events: demoWorkspace.events }
   return apiClient.get('/memory/summary')
 }
 
 export async function saveProfile(key, value) {
+  if (DEMO_MODE) return saveDemoProfile(demoWorkspace, key, value)
   return apiClient.put(`/memory/profiles/${encodeURIComponent(key)}`, { value })
 }
 
 export async function deleteProfile(key) {
+  if (DEMO_MODE) {
+    if (!deleteDemoProfile(demoWorkspace, key)) throw new Error('没有找到这条演示记忆')
+    return { key, deleted: true }
+  }
   return apiClient.delete(`/memory/profiles/${encodeURIComponent(key)}`)
 }
 
 export function reportDownloadUrl(filename) {
+  if (DEMO_MODE) {
+    const content = getDemoReportContent(filename)
+    return `data:text/markdown;charset=utf-8,${encodeURIComponent(content)}`
+  }
   return `/api/reports/${encodeURIComponent(filename)}`
 }
 

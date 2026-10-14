@@ -19,7 +19,7 @@
       <template v-if="!isUploading">
         <div class="upload-icon">↑</div>
         <div class="upload-title">拖入资料，或点击选择</div>
-        <div class="upload-caption">PDF / Word / TXT / Markdown · 自动建立索引</div>
+        <div class="upload-caption">{{ props.demo ? '公开演示 · 仅在当前浏览器展示' : 'PDF / Word / TXT / Markdown · 自动建立索引' }}</div>
       </template>
 
       <template v-else>
@@ -48,6 +48,9 @@ import { ref } from 'vue'
 import { useFileUpload } from '../composables/useFileUpload.js'
 
 const emit = defineEmits(['uploaded', 'error'])
+const props = defineProps({
+  demo: { type: Boolean, default: false }
+})
 const fileInput = ref(null)
 const isDragging = ref(false)
 

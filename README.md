@@ -13,6 +13,7 @@ Memex AI 是一个面向个人工作资料的 AI 记忆助手：上传 PDF、Wor
 - DeepSeek 普通问答与 SSE 流式问答
 - Markdown 周报生成与下载
 - Vue 3 响应式聊天界面，支持多格式拖拽上传、来源展示和本地对话记录
+- 支持 `VITE_DEMO_MODE=true` 构建公开演示版：使用预置数据体验问答、来源、记忆、文档和周报流程，不暴露真实 API Key
 
 ## 环境要求
 
@@ -58,6 +59,15 @@ npm run dev
 ```
 
 打开 Vite 输出的地址，默认是 `http://localhost:3000`。
+
+公开演示版构建：
+
+```bash
+cd frontend
+VITE_DEMO_MODE=true npm run build -- --base=/memex-ai/
+```
+
+演示版使用浏览器内的预置数据，不连接 DeepSeek、PostgreSQL 或 ChromaDB；真实后端仍按本地开发方式启动。
 
 ## 主要接口
 

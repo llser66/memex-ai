@@ -27,7 +27,7 @@
         </div>
 
         <div class="sidebar-label">添加资料</div>
-        <FileUploader ref="uploaderRef" @uploaded="handleUploaded" @error="handleUploadError" />
+        <FileUploader ref="uploaderRef" :demo="isDemoMode" @uploaded="handleUploaded" @error="handleUploadError" />
 
         <DocumentList
           :documents="documents"
@@ -47,8 +47,8 @@
 
       <div class="sidebar-footer">
         <span class="status-dot success" />
-        <span>本地工作区已连接</span>
-        <span class="footer-version">v0.2</span>
+        <span>{{ isDemoMode ? '在线演示 · 示例数据' : '本地工作区已连接' }}</span>
+        <span class="footer-version">{{ isDemoMode ? 'demo' : 'v0.2' }}</span>
       </div>
     </aside>
 
@@ -62,7 +62,7 @@
           </div>
         </div>
         <div class="header-actions">
-          <div class="sync-state"><span class="status-dot success" />知识库已同步</div>
+          <div class="sync-state"><span class="status-dot success" />{{ isDemoMode ? '在线演示 · 知识库已同步' : '知识库已同步' }}</div>
           <button class="header-icon-button" title="清空当前对话" @click="clearConversation">↺</button>
         </div>
       </header>
@@ -74,11 +74,11 @@
           <h2>把散落的资料，<br /><em>变成可对话的工作记忆。</em></h2>
           <p class="welcome-description">
             上传你的简历、项目文档或工作记录。Memex 会记住上下文，
-            在你需要的时候给出有依据的回答。
+            在你需要的时候给出有依据的回答。<span v-if="isDemoMode">当前为公开演示模式，使用预置示例数据，不连接真实 API。</span>
           </p>
           <div class="welcome-actions">
             <button class="primary-button" @click="openUploader">
-              <span>↑</span> 上传第一份 PDF
+              <span>↑</span> {{ isDemoMode ? '加入一份演示资料' : '上传第一份 PDF' }}
             </button>
             <button class="secondary-button" @click="quickAsk('我的资料里有哪些 AI 项目？')">
               先问一个问题 <span>→</span>
@@ -175,6 +175,7 @@ import {
 } from './api/index.js'
 
 const STORAGE_KEY = 'memex-conversation-v1'
+const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true'
 
 const messages = ref(loadConversation())
 const input = ref('')

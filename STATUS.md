@@ -33,7 +33,9 @@
 - 重启 Windows 后 Docker Engine 已恢复，`docker info` 返回 Server `29.5.3`，PostgreSQL 容器显示 `healthy`。
 - 后端 `/health`、前端 `/api/documents` 和 `/api/memory/summary` 均已实测返回 HTTP 200；前端代理的 `/api/chat/stream` 返回 `text/event-stream` 并包含 `[DONE]`；旧 Docker 运行目录保留在本地备份中，未删除镜像、容器、卷或数据库。
 - 多格式解析与上传单元/集成测试共 9 个通过，前端构建和 `/upload/document` OpenAPI 注册检查通过。
+- 新增 `VITE_DEMO_MODE` 公开演示模式：预置知识库数据、模拟流式问答、来源展示、记忆管理、文档加入和 Markdown 周报下载。
+- Demo 数据层测试 3 个通过；公开构建命令为 `VITE_DEMO_MODE=true npm run build -- --base=/memex-ai/`。
 
 ## 下一步
 
-- 当前本地开发环境已启动并完成真实链路验收；后续只需在页面继续使用即可。TDD 证据见 `docs/testing/document-upload.tdd.md`。
+- 当前本地开发环境已启动并完成真实链路验收；公开 Demo 用于 HR 直接体验，真实后端仍保留在本地开发链路。TDD 证据见 `docs/testing/document-upload.tdd.md`。
