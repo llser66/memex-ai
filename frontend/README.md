@@ -1,5 +1,14 @@
-# Vue 3 + Vite
+# Memex AI 前端
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Vue 3 + Vite 单页应用。开发服务器默认运行在 `3000` 端口，并将 `/api` 请求代理到 `http://127.0.0.1:8000`。资料上传支持 PDF、Word（`.docx`）、TXT 和 Markdown。
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+```bash
+npm install
+npm run dev
+```
+
+生产构建：
+
+```bash
+npm run build
+```

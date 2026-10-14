@@ -1,24 +1,30 @@
 import { ref } from 'vue'
-import { uploadPdf } from '../api/index.js'
+import { uploadDocument } from '../api/index.js'
 
 export function useFileUpload() {
   const uploading = ref(false)
-  const uploadSuccess = ref('')
+  const uploadProgress = ref(0)
+  const uploadResult = ref(null)
   const uploadError = ref('')
 
   async function handleUpload(file) {
-    if (!file) return
+    if (!file) return null
+
     uploading.value = true
-    uploadSuccess.value = ''
+    uploadProgress.value = 0
+    uploadResult.value = null
     uploadError.value = ''
+
     try {
-      const res = await uploadPdf(file)
-      uploadSuccess.value = res.filename
-      return res
-    } catch (err) {
-      uploadError.value = '上传失败，请重试'
-      console.error(err)
-      throw err
+      const result = await uploadDocument(file, (progress) => {
+        uploadProgress.value = progress
+      })
+      uploadProgress.value = 100
+      uploadResult.value = result
+      return result
+    } catch (error) {
+      uploadError.value = error.message || '上传失败，请重试。'
+      throw error
     } finally {
       uploading.value = false
     }
@@ -26,7 +32,10 @@ export function useFileUpload() {
 
   return {
     uploading,
-    uploadSuccess,
+    // 兼容旧组件命名，同时提供语义更清晰的字段。
+    isUploading: uploading,
+    uploadProgress,
+    uploadResult,
     uploadError,
     handleUpload
   }
