@@ -1,103 +1,221 @@
 <template>
   <div class="app-shell">
-    <!-- 顶部导航 -->
-    <header class="topbar">
-      <div class="logo">
-        <span class="logo-icon">🧠</span>
+    <aside class="sidebar" :class="{ 'is-open': sidebarOpen }">
+      <div class="sidebar-brand">
+        <div class="brand-mark">M</div>
         <div>
-          <h1>Memex AI</h1>
-          <p class="subtitle">个人 AI 工作记忆助手</p>
+          <div class="brand-name">Memex</div>
+          <div class="brand-caption">个人工作记忆</div>
         </div>
+        <button class="mobile-close" aria-label="关闭侧边栏" @click="sidebarOpen = false">×</button>
       </div>
-      <button class="upload-btn" @click="triggerUpload" :disabled="uploading">
-        <span v-if="!uploading">📄 上传 PDF</span>
-        <span v-else>⏳ 上传中...</span>
+
+      <button class="new-chat-button" @click="clearConversation">
+        <span class="new-chat-icon">＋</span>
+        新建对话
+        <span class="shortcut-hint">⌘ K</span>
       </button>
-      <input
-        type="file"
-        accept=".pdf"
-        ref="fileInput"
-        style="display: none"
-        @change="handleFileUpload"
-      />
-    </header>
 
-    <!-- 主内容区 -->
-    <main class="chat-area">
-      <!-- 空状态 -->
-      <div v-if="messages.length === 0" class="empty-state">
-        <div class="empty-icon">✨</div>
-        <h2>你好，我是 Memex AI</h2>
-        <p>上传 PDF 文档建立知识库，或直接向我提问</p>
-      </div>
+      <div class="sidebar-scroll">
+        <div class="workspace-card">
+          <div class="workspace-icon">✦</div>
+          <div>
+            <div class="workspace-label">当前工作区</div>
+            <div class="workspace-name">我的工作记忆</div>
+          </div>
+          <span class="live-indicator" title="服务状态正常" />
+        </div>
 
-      <!-- 消息列表 -->
-      <div v-else class="messages-container" ref="messagesContainer">
-        <ChatMessage
-          v-for="(msg, idx) in messages"
-          :key="idx"
-          :role="msg.role"
-          :content="msg.content"
-          :sources="msg.sources"
-          :streaming="msg.streaming"
+        <div class="sidebar-label">添加资料</div>
+        <FileUploader ref="uploaderRef" @uploaded="handleUploaded" @error="handleUploadError" />
+
+        <DocumentList
+          :documents="documents"
+          :loading="documentsLoading"
+          :deleting="deletingDocument"
+          @delete="removeDocument"
+        />
+
+        <MemoryPanel
+          :profiles="memory.profiles"
+          :events="memory.events"
+          :saving="memorySaving"
+          @save-profile="saveMemory"
+          @delete-profile="removeMemory"
         />
       </div>
+
+      <div class="sidebar-footer">
+        <span class="status-dot success" />
+        <span>本地工作区已连接</span>
+        <span class="footer-version">v0.2</span>
+      </div>
+    </aside>
+
+    <main class="main-panel">
+      <header class="main-header">
+        <div class="header-left">
+          <button class="mobile-menu" aria-label="打开侧边栏" @click="sidebarOpen = true">☰</button>
+          <div>
+            <div class="header-eyebrow">WORK MEMORY / 01</div>
+            <h1>和你的资料对话</h1>
+          </div>
+        </div>
+        <div class="header-actions">
+          <div class="sync-state"><span class="status-dot success" />知识库已同步</div>
+          <button class="header-icon-button" title="清空当前对话" @click="clearConversation">↺</button>
+        </div>
+      </header>
+
+      <section ref="messagesContainer" class="chat-area">
+        <div v-if="messages.length === 0" class="welcome-view">
+          <div class="welcome-glow" />
+          <div class="welcome-kicker"><span /> YOUR PRIVATE KNOWLEDGE LAYER</div>
+          <h2>把散落的资料，<br /><em>变成可对话的工作记忆。</em></h2>
+          <p class="welcome-description">
+            上传你的简历、项目文档或工作记录。Memex 会记住上下文，
+            在你需要的时候给出有依据的回答。
+          </p>
+          <div class="welcome-actions">
+            <button class="primary-button" @click="openUploader">
+              <span>↑</span> 上传第一份 PDF
+            </button>
+            <button class="secondary-button" @click="quickAsk('我的资料里有哪些 AI 项目？')">
+              先问一个问题 <span>→</span>
+            </button>
+          </div>
+
+          <div class="prompt-grid">
+            <button class="prompt-card" @click="quickAsk('我的资料里有哪些 AI 项目？')">
+              <span class="prompt-icon lavender">⌁</span>
+              <span><strong>探索你的资料</strong><small>找到项目、技能和经历</small></span>
+              <span class="prompt-arrow">↗</span>
+            </button>
+            <button class="prompt-card" @click="quickAsk('帮我生成本周周报')">
+              <span class="prompt-icon peach">✎</span>
+              <span><strong>整理本周工作</strong><small>生成一份结构化周报</small></span>
+              <span class="prompt-arrow">↗</span>
+            </button>
+            <button class="prompt-card" @click="quickAsk('我最近上传过什么文件？')">
+              <span class="prompt-icon mint">◷</span>
+              <span><strong>回顾最近活动</strong><small>看看知识库发生了什么</small></span>
+              <span class="prompt-arrow">↗</span>
+            </button>
+          </div>
+        </div>
+
+        <div v-else class="messages-container">
+          <div class="conversation-start">
+            <span class="conversation-line" />
+            <span>本次对话</span>
+            <span class="conversation-line" />
+          </div>
+          <ChatMessage
+            v-for="(message, index) in messages"
+            :key="message.id || index"
+            :role="message.role"
+            :content="message.content"
+            :sources="message.sources"
+            :report-file="message.reportFile"
+            :streaming="message.streaming"
+          />
+        </div>
+      </section>
+
+      <footer class="composer-area">
+        <div class="quick-actions">
+          <button @click="quickAsk('帮我生成本周周报')"><span>✎</span> 生成周报</button>
+          <button @click="quickAsk('我最近上传过什么文件？')"><span>◷</span> 最近活动</button>
+          <button @click="quickAsk('总结我的个人工作背景')"><span>✦</span> 总结我的背景</button>
+        </div>
+        <div class="composer-box" :class="{ focused: inputFocused }">
+          <textarea
+            v-model="input"
+            rows="1"
+            placeholder="问问你的工作记忆…"
+            :disabled="loading"
+            @focus="inputFocused = true"
+            @blur="inputFocused = false"
+            @keydown.enter.exact.prevent="sendMessage"
+          />
+          <div class="composer-bottom">
+            <span class="composer-hint">Enter 发送 · Shift + Enter 换行</span>
+            <button class="send-button" :disabled="loading || !input.trim()" @click="sendMessage">
+              <span v-if="!loading">发送 <b>↗</b></span>
+              <span v-else class="send-loading">●●●</span>
+            </button>
+          </div>
+        </div>
+        <div class="composer-disclaimer">Memex AI 会基于你的资料回答，重要信息请自行核实。</div>
+      </footer>
     </main>
 
-    <!-- 底部输入区 -->
-    <footer class="input-area">
-      <!-- 快捷操作按钮（始终显示） -->
-      <div class="quick-actions">
-        <button class="quick-btn" @click="quickAsk('帮我生成本周周报')">
-          📝 生成周报
-        </button>
-        <button class="quick-btn" @click="quickAsk('我最近上传过什么文件？')">
-          🕐 查看最近活动
-        </button>
+    <transition name="toast">
+      <div v-if="toast.message" class="toast" :class="{ error: toast.error }">
+        <span>{{ toast.error ? '!' : '✓' }}</span>{{ toast.message }}
       </div>
-
-      <div class="input-wrapper">
-        <textarea
-          v-model="input"
-          @keydown.enter.exact.prevent="sendMessage"
-          placeholder="输入消息，Enter 发送，Shift+Enter 换行..."
-          rows="1"
-          class="message-input"
-          :disabled="loading"
-        ></textarea>
-        <button
-          class="send-btn"
-          @click="sendMessage"
-          :disabled="loading || !input.trim()"
-        >
-          <span v-if="!loading">发送</span>
-          <span v-else>...</span>
-        </button>
-      </div>
-      <p class="footer-hint">Memex AI 可能会出错，请核实重要信息</p>
-    </footer>
-
-    <!-- 上传成功提示 -->
-    <div v-if="uploadSuccess" class="toast" @click="uploadSuccess = ''">
-      ✅ {{ uploadSuccess }}
-    </div>
+    </transition>
   </div>
 </template>
 
 <script setup>
-import { ref, nextTick, onMounted } from 'vue'
+import { nextTick, onMounted, ref, watch } from 'vue'
 import ChatMessage from './components/ChatMessage.vue'
-import { sendChatMessageStream, sendChatMessage, uploadPdf } from './api/index.js'
+import DocumentList from './components/DocumentList.vue'
+import FileUploader from './components/FileUploader.vue'
+import MemoryPanel from './components/MemoryPanel.vue'
+import {
+  deleteDocument,
+  deleteProfile,
+  getMemorySummary,
+  listDocuments,
+  saveProfile,
+  sendChatMessage,
+  sendChatMessageStream
+} from './api/index.js'
 
-const messages = ref([])
+const STORAGE_KEY = 'memex-conversation-v1'
+
+const messages = ref(loadConversation())
 const input = ref('')
 const loading = ref(false)
-const uploading = ref(false)
-const uploadSuccess = ref('')
-const fileInput = ref(null)
+const inputFocused = ref(false)
+const sidebarOpen = ref(false)
+const uploaderRef = ref(null)
 const messagesContainer = ref(null)
+const documents = ref([])
+const documentsLoading = ref(false)
+const deletingDocument = ref('')
+const memory = ref({ profiles: [], events: [] })
+const memorySaving = ref(false)
+const toast = ref({ message: '', error: false })
+let toastTimer
 
-// 自动滚动到底部
+function loadConversation() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
+    return Array.isArray(saved) ? saved : []
+  } catch {
+    return []
+  }
+}
+
+watch(messages, (value) => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(value.slice(-80)))
+  } catch {
+    // 浏览器存储不可用时仍然保留当前会话。
+  }
+}, { deep: true })
+
+function showToast(message, error = false) {
+  toast.value = { message, error }
+  clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => {
+    toast.value = { message: '', error: false }
+  }, 3600)
+}
+
 async function scrollToBottom() {
   await nextTick()
   if (messagesContainer.value) {
@@ -105,299 +223,160 @@ async function scrollToBottom() {
   }
 }
 
-// 快速提问
-function quickAsk(q) {
-  input.value = q
-  sendMessage()
-}
-
-// 触发文件选择
-function triggerUpload() {
-  fileInput.value.click()
-}
-
-// 处理文件上传
-async function handleFileUpload(event) {
-  const file = event.target.files[0]
-  if (!file) return
-
-  uploading.value = true
+async function refreshDocuments() {
+  documentsLoading.value = true
   try {
-    const res = await uploadPdf(file)
-    uploadSuccess.value = `文件 "${res.filename}" 上传成功，已加入知识库`
-    messages.value.push({
-      role: 'assistant',
-      content: `✅ 文档 **${res.filename}** 上传成功，共 ${res.chunk_count || '若干'} 个片段已存入知识库。现在你可以询问相关内容。`,
-      sources: []
-    })
-    scrollToBottom()
-  } catch (err) {
-    uploadSuccess.value = '上传失败，请重试'
+    documents.value = await listDocuments()
+  } catch (error) {
+    showToast(`知识库同步失败：${error.message}`, true)
   } finally {
-    uploading.value = false
-    event.target.value = ''
+    documentsLoading.value = false
   }
 }
 
-// 发送消息
+async function refreshMemory() {
+  try {
+    memory.value = await getMemorySummary()
+  } catch (error) {
+    showToast(`记忆同步失败：${error.message}`, true)
+  }
+}
+
+async function loadWorkspace() {
+  await Promise.all([refreshDocuments(), refreshMemory()])
+}
+
+function openUploader() {
+  uploaderRef.value?.openFilePicker()
+}
+
+function handleUploaded(result) {
+  const chunkCount = result.chunks ?? result.chunk_count ?? 0
+  messages.value.push({
+    id: `upload-${Date.now()}`,
+    role: 'assistant',
+    content: `已收录 **${result.filename}**。${result.pages || 0} 页内容被切分为 ${chunkCount} 个片段，现在可以直接向它提问。`,
+    sources: [],
+    reportFile: '',
+    streaming: false
+  })
+  sidebarOpen.value = false
+  showToast(`${result.filename} 已加入知识库`)
+  refreshDocuments()
+  refreshMemory()
+  scrollToBottom()
+}
+
+function handleUploadError(error) {
+  showToast(error?.message || '上传失败，请重试。', true)
+}
+
+function quickAsk(question) {
+  if (loading.value) return
+  input.value = question
+  sendMessage()
+}
+
 async function sendMessage() {
   const question = input.value.trim()
   if (!question || loading.value) return
 
-  messages.value.push({ role: 'user', content: question })
+  messages.value.push({ id: `user-${Date.now()}`, role: 'user', content: question })
   input.value = ''
   loading.value = true
-  scrollToBottom()
-
-  // 添加空的助手消息用于流式显示
-  const assistantMsg = {
+  messages.value.push({
+    id: `assistant-${Date.now()}`,
     role: 'assistant',
     content: '',
     sources: [],
+    reportFile: '',
     streaming: true
-  }
-  messages.value.push(assistantMsg)
-  const assistantIndex = messages.value.length - 1
+  })
+  const assistantMessage = messages.value[messages.value.length - 1]
+  await scrollToBottom()
 
   try {
-    await sendChatMessageStream(question, (chunk) => {
-      if (chunk && chunk.content) {
-        messages.value[assistantIndex].content += chunk.content
-        scrollToBottom()
-      }
+    const streamResult = await sendChatMessageStream(question, (chunk) => {
+      if (chunk.content) assistantMessage.content += chunk.content
+      if (chunk.sources) assistantMessage.sources = chunk.sources
+      if (chunk.report_file) assistantMessage.reportFile = chunk.report_file
+      scrollToBottom()
     })
-    messages.value[assistantIndex].streaming = false
-  } catch (err) {
-    // 流式失败回退普通接口
+
+    if (streamResult?.sources) assistantMessage.sources = streamResult.sources
+    if (streamResult?.report_file) assistantMessage.reportFile = streamResult.report_file
+    if (!assistantMessage.content.trim()) throw new Error('流式接口没有返回内容')
+    assistantMessage.streaming = false
+  } catch (streamError) {
+    // 流式接口不可用时保留可靠的普通接口兜底。
     try {
-      const res = await sendChatMessage(question)
-      messages.value[assistantIndex].content = res.answer || '抱歉，回答失败'
-      messages.value[assistantIndex].sources = res.sources || []
-      messages.value[assistantIndex].streaming = false
-    } catch (err2) {
-      messages.value[assistantIndex].content = '抱歉，请求失败。请确认后端服务已启动。'
-      messages.value[assistantIndex].streaming = false
+      const result = await sendChatMessage(question)
+      assistantMessage.content = result.answer || '抱歉，没有生成回答。'
+      assistantMessage.sources = result.sources || []
+      assistantMessage.reportFile = result.report_file || ''
+      assistantMessage.streaming = false
+    } catch (error) {
+      assistantMessage.content = `暂时无法完成回答：${error.message || streamError.message}`
+      assistantMessage.streaming = false
+      showToast('请求失败，请检查后端服务和 DeepSeek 配置。', true)
     }
   } finally {
     loading.value = false
-    scrollToBottom()
+    sidebarOpen.value = false
+    await scrollToBottom()
+    refreshMemory()
+  }
+}
+
+function clearConversation() {
+  messages.value = []
+  input.value = ''
+  sidebarOpen.value = false
+  showToast('已新建一个空白对话')
+}
+
+async function removeDocument(filename) {
+  if (!window.confirm(`确定要删除“${filename}”及其知识库索引吗？`)) return
+  deletingDocument.value = filename
+  try {
+    await deleteDocument(filename)
+    showToast(`${filename} 已从知识库移除`)
+    await refreshDocuments()
+    await refreshMemory()
+  } catch (error) {
+    showToast(`删除失败：${error.message}`, true)
+  } finally {
+    deletingDocument.value = ''
+  }
+}
+
+async function saveMemory({ key, value }) {
+  if (!key || !value) return
+  memorySaving.value = true
+  try {
+    await saveProfile(key, value)
+    await refreshMemory()
+    showToast(`已保存记忆：${key}`)
+  } catch (error) {
+    showToast(`记忆保存失败：${error.message}`, true)
+  } finally {
+    memorySaving.value = false
+  }
+}
+
+async function removeMemory(key) {
+  if (!window.confirm(`确定删除“${key}”这条记忆吗？`)) return
+  try {
+    await deleteProfile(key)
+    await refreshMemory()
+    showToast(`已删除记忆：${key}`)
+  } catch (error) {
+    showToast(`记忆删除失败：${error.message}`, true)
   }
 }
 
 onMounted(() => {
+  loadWorkspace()
   scrollToBottom()
 })
 </script>
-
-<style scoped>
-.app-shell {
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: linear-gradient(160deg, #0b0f17 0%, #111827 100%);
-}
-
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 24px;
-  background: rgba(17, 24, 39, 0.8);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border);
-  z-index: 10;
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.logo-icon {
-  font-size: 2rem;
-}
-
-.logo h1 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-
-.subtitle {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-
-.upload-btn {
-  background: var(--accent);
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 20px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s;
-  font-size: 0.9rem;
-}
-
-.upload-btn:hover {
-  background: var(--accent-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-}
-
-.upload-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.chat-area {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-}
-
-.empty-state {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  gap: 12px;
-}
-
-.empty-icon {
-  font-size: 4rem;
-  animation: float 3s ease-in-out infinite;
-}
-
-.empty-state h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-.empty-state p {
-  color: var(--text-secondary);
-  margin-bottom: 16px;
-}
-
-.messages-container {
-  max-width: 800px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.input-area {
-  padding: 16px 24px;
-  background: rgba(17, 24, 39, 0.9);
-  backdrop-filter: blur(12px);
-  border-top: 1px solid var(--border);
-}
-
-/* 快捷按钮区域 */
-.quick-actions {
-  max-width: 800px;
-  margin: 0 auto 12px;
-  display: flex;
-  gap: 10px;
-}
-
-.quick-btn {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  color: var(--text-primary);
-  padding: 8px 16px;
-  border-radius: 20px;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 0.85rem;
-}
-
-.quick-btn:hover {
-  background: var(--bg-hover);
-  border-color: var(--accent);
-}
-
-.input-wrapper {
-  max-width: 800px;
-  margin: 0 auto;
-  display: flex;
-  gap: 12px;
-  align-items: flex-end;
-}
-
-.message-input {
-  flex: 1;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 24px;
-  padding: 12px 18px;
-  color: var(--text-primary);
-  font-family: inherit;
-  font-size: 0.95rem;
-  resize: none;
-  outline: none;
-  transition: border-color 0.2s;
-  max-height: 150px;
-}
-
-.message-input:focus {
-  border-color: var(--accent);
-}
-
-.send-btn {
-  background: var(--accent);
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 24px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.send-btn:hover {
-  background: var(--accent-hover);
-}
-
-.send-btn:disabled {
-  background: #374151;
-  cursor: not-allowed;
-}
-
-.footer-hint {
-  text-align: center;
-  font-size: 0.7rem;
-  color: var(--text-secondary);
-  margin-top: 8px;
-}
-
-.toast {
-  position: fixed;
-  top: 80px;
-  right: 24px;
-  background: #059669;
-  color: white;
-  padding: 12px 20px;
-  border-radius: 12px;
-  font-size: 0.9rem;
-  cursor: pointer;
-  z-index: 100;
-  animation: slideIn 0.3s ease;
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
-}
-
-@keyframes slideIn {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
-}
-</style>

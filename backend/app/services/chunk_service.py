@@ -10,7 +10,10 @@ def split_pages(
 
     for page in pages:
 
-        text = page["text"]
+        text = (page.get("text") or "").strip()
+
+        if not text:
+            continue
 
         page_num = page["page"]
 
@@ -23,7 +26,11 @@ def split_pages(
             end=start+chunk_size
 
 
-            chunk_text=text[start:end]
+            chunk_text=text[start:end].strip()
+
+            if not chunk_text:
+                start += chunk_size - overlap
+                continue
 
 
             chunks.append(

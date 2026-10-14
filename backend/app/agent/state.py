@@ -28,3 +28,6 @@ class AgentState(TypedDict):
 
     # 来源信息列表，每个元素是 metadata 字典（例如 {"source": "xxx.pdf", "page": 1}）
     sources: Optional[List[dict]]
+
+    # 工具生成的文件名（例如周报 Markdown 文件）
+    report_file: Optional[str]

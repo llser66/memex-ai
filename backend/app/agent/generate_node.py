@@ -7,20 +7,26 @@ Generate 节点（最终生成）
 
 from app.rag.generator import generate_answer
 
-def generate_node(state: dict) -> dict:
-    question = state["question"]
-    contexts = state.get("rag_contexts", [])
-    memory = state.get("memory_context", "")
-    tool_results = state.get("tool_results", [])
 
-    # 如果有工具执行结果（例如周报生成成功），追加到 memory 上下文中，
-    # 这样 LLM 在回答时也能知道工具的执行情况
+def build_generation_memory(state: dict) -> str:
+    """合并长期记忆和工具执行结果，供最终生成节点复用。"""
+    memory = state.get("memory_context", "") or ""
+    tool_results = state.get("tool_results", []) or []
+
     if tool_results:
         extra = "\n".join(tool_results)
         if memory:
             memory += "\n[工具执行结果]\n" + extra
         else:
             memory = "[工具执行结果]\n" + extra
+
+    return memory
+
+
+def generate_node(state: dict) -> dict:
+    question = state["question"]
+    contexts = state.get("rag_contexts", [])
+    memory = build_generation_memory(state)
 
     # 调用 generate_answer，传入问题、检索到的上下文、记忆（含工具结果）
     answer = generate_answer(question, contexts, memory)

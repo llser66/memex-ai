@@ -4,6 +4,9 @@ from app.services.embed_service import generate_embeddings
 
 def search(query: str, top_k: int = 3):
 
+    if collection.count() == 0:
+        return []
+
     # 1. 将用户问题转换成向量
     query_vector = generate_embeddings(
         [query]

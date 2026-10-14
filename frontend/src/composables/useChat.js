@@ -21,6 +21,7 @@ export function useChat() {
       role,
       content,
       sources,
+      reportFile: '',
       streaming: false
     })
   }
@@ -44,14 +45,21 @@ export function useChat() {
 
     try {
       // 尝试流式接收
-      await sendChatMessageStream(question, (chunk) => {
+      const streamResult = await sendChatMessageStream(question, (chunk) => {
         // chunk 可能是 { content: "..." } 或直接字符串，根据后端返回调整
         if (chunk && chunk.content) {
           assistantMsg.content += chunk.content
+        } else if (chunk && chunk.sources) {
+          assistantMsg.sources = chunk.sources
+        } else if (chunk && chunk.report_file) {
+          assistantMsg.reportFile = chunk.report_file
         } else if (typeof chunk === 'string') {
           assistantMsg.content += chunk
         }
       })
+      assistantMsg.sources = streamResult?.sources || assistantMsg.sources
+      assistantMsg.reportFile = streamResult?.report_file || ''
+      if (!assistantMsg.content.trim()) throw new Error('流式接口没有返回内容')
       assistantMsg.streaming = false
     } catch (err) {
       // 流式失败，回退普通接口

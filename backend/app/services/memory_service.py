@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy.orm import Session
 
 from app.database.models import (
@@ -61,6 +63,14 @@ def get_profile(
     )
 
 
+def delete_profile(db: Session, key: str):
+    profile = get_profile(db, key)
+    if profile:
+        db.delete(profile)
+        db.commit()
+    return profile
+
+
 def add_event(
     db: Session,
     event_type: str,
@@ -90,6 +100,22 @@ def get_recent_events(
 
     return (
         db.query(EventMemory)
+        .order_by(EventMemory.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+
+def get_events_between(
+    db: Session,
+    start: datetime,
+    end: datetime,
+    limit: int = 200,
+):
+    return (
+        db.query(EventMemory)
+        .filter(EventMemory.created_at >= start)
+        .filter(EventMemory.created_at < end)
         .order_by(EventMemory.created_at.desc())
         .limit(limit)
         .all()

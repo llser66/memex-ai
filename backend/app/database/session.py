@@ -11,13 +11,17 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 # 加载项目根目录 .env
 load_dotenv(PROJECT_ROOT / ".env")
+load_dotenv(PROJECT_ROOT / "backend" / ".env")
 
 
 POSTGRES_USER = os.getenv("POSTGRES_USER", "memex")
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "memex_password_2026")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
 POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
 POSTGRES_DB = os.getenv("POSTGRES_DB", "memex_db")
+
+if not POSTGRES_PASSWORD:
+    raise RuntimeError("未配置 POSTGRES_PASSWORD，请在 .env 或环境变量中设置。")
 
 
 DATABASE_URL = (
